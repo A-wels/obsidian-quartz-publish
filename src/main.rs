@@ -28,6 +28,9 @@ struct Watcher {
 impl Watcher {
     // Create a new watcher
     fn new(obsidian_path: String, target_path: String) -> Watcher {
+        // remove trailing slashes
+        let obsidian_path = obsidian_path.trim_end_matches('/').to_string();
+        let target_path = target_path.trim_end_matches('/').to_string();
         Watcher {
             obsidian_path,
             target_path: Path::new(&target_path)
@@ -115,15 +118,8 @@ impl Watcher {
 
             // copy the file, if the source file is newer than the target file or the target file does not exist
             if !target.exists()
-                || source
-                    .metadata()
-                    .unwrap()
-                    .modified()
-                    .unwrap()
-                    .duration_since(std::fs::metadata(&target).unwrap().modified().unwrap())
-                    .unwrap()
-                    .as_secs()
-                    > 0
+                || source.metadata().unwrap().modified().unwrap()
+                    > target.metadata().unwrap().modified().unwrap()
             {
                 println!(
                     "Copying {} to {}",
