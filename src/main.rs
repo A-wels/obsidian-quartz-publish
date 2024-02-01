@@ -22,6 +22,7 @@ struct Watcher {
     quartz_path: String,
     // The list of files in the directory
     files: Vec<String>,
+    changed: bool,
 }
 
 impl Watcher {
@@ -29,9 +30,14 @@ impl Watcher {
     fn new(obsidian_path: String, target_path: String) -> Watcher {
         Watcher {
             obsidian_path,
-            target_path: target_path.clone() + "content/",
+            target_path: Path::new(&target_path)
+                .join("content")
+                .to_str()
+                .unwrap()
+                .to_string(),
             quartz_path: target_path,
             files: Vec::new(),
+            changed: false,
         }
     }
 
@@ -39,11 +45,16 @@ impl Watcher {
     fn watch(&mut self) {
         loop {
             self.list_files();
-            println!("\n");
+            println!("");
             self.copy_files();
-            println!("\nBuilding...");
-            self.run_build();
-            println!("\nDone!");
+            if self.changed {
+                println!(" Files changed! Rebuilding...");
+                self.run_build();
+            } else {
+                println!("No files changed!");
+            }
+            println!("Done!");
+            self.changed = false;
             std::thread::sleep(std::time::Duration::from_secs(60));
         }
     }
@@ -67,8 +78,6 @@ impl Watcher {
             // add to files list
             if !self.files.contains(&file.to_str().unwrap().to_string()) {
                 self.files.push(file.to_str().unwrap().to_string());
-                println!("\nAdded: {}", file.to_str().unwrap());
-
                 // add files that are embedded using ![[file|displayname]] syntax. keep only the file name, not the display name
                 let re = Regex::new(r"!\[\[(.*?)\]\]").unwrap();
                 for cap in re.captures_iter(&contents) {
@@ -80,7 +89,6 @@ impl Watcher {
                         // add to files list
                         if !self.files.contains(&new_file.to_str().unwrap().to_string()) {
                             self.files.push(new_file.to_str().unwrap().to_string());
-                            println!("Added: {}", new_file.to_str().unwrap());
                         }
                     }
                 }
@@ -88,7 +96,7 @@ impl Watcher {
         }
     }
     // copy files to target directory
-    fn copy_files(&self) {
+    fn copy_files(&mut self) {
         for file in &self.files {
             let source = Path::new(&self.obsidian_path).join(&file);
 
@@ -104,13 +112,19 @@ impl Watcher {
 
             // copy file, create directories if necessary
             std::fs::create_dir_all(target.parent().unwrap()).unwrap();
-            println!(
-                "Copying {} to {}",
-                source.to_str().unwrap(),
-                target.to_str().unwrap()
-            );
-            // try copying, if it fails, search for the file in the folder and cor
-            std::fs::copy(source, target).unwrap();
+
+            // copy the file, if the source file is newer than the target file
+            if source.metadata().unwrap().modified().unwrap()
+                > target.metadata().unwrap().modified().unwrap()
+            {
+                println!(
+                    "Copying {} to {}",
+                    source.to_str().unwrap(),
+                    target.to_str().unwrap()
+                );
+                std::fs::copy(source, target).unwrap();
+                self.changed = true;
+            }
         }
     }
 
