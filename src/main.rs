@@ -4,13 +4,13 @@ fn main() {
     // Get first argument: Path to directory
     let args: Vec<String> = std::env::args().collect();
     let obsidian_path = &args[1];
-    let target_path = &args[2];
+    let quartz_path = &args[2];
 
     println!("Watching: {}", obsidian_path);
-    println!("Publishing to: {}", target_path);
+    println!("Publishing to: {}", quartz_path);
 
     // Create a new watcher
-    let mut watcher = Watcher::new(obsidian_path.to_string(), target_path.to_string());
+    let mut watcher = Watcher::new(obsidian_path.to_string(), quartz_path.to_string());
     watcher.watch();
 }
 
@@ -19,6 +19,7 @@ struct Watcher {
     // The path to the directory to watch
     obsidian_path: String,
     target_path: String,
+    quartz_path: String,
     // The list of files in the directory
     files: Vec<String>,
 }
@@ -28,7 +29,8 @@ impl Watcher {
     fn new(obsidian_path: String, target_path: String) -> Watcher {
         Watcher {
             obsidian_path,
-            target_path: target_path,
+            target_path: target_path.clone() + "content",
+            quartz_path: target_path,
             files: Vec::new(),
         }
     }
@@ -39,6 +41,9 @@ impl Watcher {
             self.list_files();
             println!("\n");
             self.copy_files();
+            println!("\nBuilding...");
+            self.run_build();
+            println!("\nDone!");
             std::thread::sleep(std::time::Duration::from_secs(60));
         }
     }
@@ -107,5 +112,16 @@ impl Watcher {
             // try copying, if it fails, search for the file in the folder and cor
             std::fs::copy(source, target).unwrap();
         }
+    }
+
+    // Run the build command (npx quartz build) in the quartz directory
+    fn run_build(&self) {
+        let output = std::process::Command::new("npx")
+            .arg("quartz")
+            .arg("build")
+            .current_dir(&self.quartz_path)
+            .output()
+            .expect("Failed to run build command");
+        println!("{}", String::from_utf8_lossy(&output.stdout));
     }
 }
