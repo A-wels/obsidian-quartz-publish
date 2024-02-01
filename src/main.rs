@@ -29,7 +29,7 @@ impl Watcher {
     fn new(obsidian_path: String, target_path: String) -> Watcher {
         Watcher {
             obsidian_path,
-            target_path: target_path.clone() + "content",
+            target_path: target_path.clone() + "content/",
             quartz_path: target_path,
             files: Vec::new(),
         }
