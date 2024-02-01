@@ -113,9 +113,17 @@ impl Watcher {
             // copy file, create directories if necessary
             std::fs::create_dir_all(target.parent().unwrap()).unwrap();
 
-            // copy the file, if the source file is newer than the target file
-            if source.metadata().unwrap().modified().unwrap()
-                > target.metadata().unwrap().modified().unwrap()
+            // copy the file, if the source file is newer than the target file or the target file does not exist
+            if !target.exists()
+                || source
+                    .metadata()
+                    .unwrap()
+                    .modified()
+                    .unwrap()
+                    .duration_since(std::fs::metadata(&target).unwrap().modified().unwrap())
+                    .unwrap()
+                    .as_secs()
+                    > 0
             {
                 println!(
                     "Copying {} to {}",
